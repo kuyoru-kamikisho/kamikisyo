@@ -5,29 +5,35 @@ let canvas = ref<any>(null);
 
 // —————————————————————— props ——————————————————————
 let props = withDefaults(defineProps<{
-  aspectRatio?: number     // 计算后，每一个格子的横向长度与纵向长度的比例 如 16/9 或者 4/3
-  autoShrink?: boolean     // 该纵横比以及高宽的格子的总面积超出容器后是否自动收缩
-  bgColor?:string          // 背景色
+  width?: number
+  height?: number
+  aspectRatio?: number     // 每一个格子的横向长度与纵向长度严格遵守的比例 如 16/9 或者 4/3，0表示禁用
+  bgColor?: string          // 背景色
   cols?: number            // 期望的横向格子数，默认为12个，即列数
-  gap?:number              // 矩形之间的间隔
-  latIn?:string        // 被悬浮时的栅格背景色
-  latOut?:string       // 无悬浮时的栅格背景色
-  latSin?:string       // 被悬浮时的栅格描边色
-  latSou?:string       // 无悬浮时的栅格描边色
+  gap?: number              // 矩形之间的间隔
+  latIn?: string        // 被悬浮时的栅格背景色
+  latOut?: string       // 无悬浮时的栅格背景色
+  latSin?: string       // 被悬浮时的栅格描边色
+  latSou?: string       // 无悬浮时的栅格描边色
   rows?: number            // 期望的纵向格子数，默认为12个，即行数
-  sWidth: number // 描边宽度
+  sWidth?: number       // 描边宽度
+  hvShadow?: [number, number, number, string] // 悬浮时添加阴影
+  otShadow?: [number, number, number, string] // 正常状态的阴影
 }>(), {
-  autoShrink: false,
+  width: 780,
+  height: 440,
   aspectRatio: 1,
   cols: 12,
-  gap:0,
+  gap: 0,
   bgColor: 'rgba(255,255,255,0)',
-  latIn:'rgb(241,25,25)',
-  latOut:'rgba(239,236,236,0.8)',
-  latSin:'rgba(0,0,0,0.56)',
-  latSou:'rgba(58,147,252,0.85)',
+  latIn: 'rgb(241,25,25)',
+  latOut: 'rgba(239,236,236,0.8)',
+  latSin: 'rgba(0,0,0,0.56)',
+  latSou: 'rgba(58,147,252,0.85)',
   rows: 12,
-  sWidth: 1
+  sWidth: 1,
+  hvShadow: () => [0, 0, 0, 'rgba(0,0,0,0)'],
+  otShadow: () => [0, 0, 0, 'rgba(0,0,0,0)'],
 });
 
 // —————————————————————— fun ——————————————————————
@@ -103,17 +109,22 @@ function reDraw(ctx: CanvasRenderingContext2D, c: string, canvas: HTMLCanvasElem
 function render(canvas: HTMLCanvasElement) {
   const ctx = canvas.getContext('2d')!;
 
-  const width = 100;  // 格子的宽度
-  const height = 70;  // 格子的高度
-  const gap = 10;     // 格子之间的距离
-  const row_num = 10;  // 横向的格子数量
-  const col_num = 10;  // 纵向的格子数量
+  const width = props.width/props.rows;  // 格子的宽度
+  let height = props.height/props.cols;  // 格子的高度
+  const gap = props.gap;     // 格子之间的距离
+  const row_num = props.rows;  // 横向的格子数量
+  const col_num = props.cols;  // 纵向的格子数量
   let stroke_color = 'rgba(0,0,0,0.56)'; //描边色
   let not_hover = 'rgba(239,236,236,0.8)';
   let bg_color = '#cbf0ff'; // 画布的背景色
   let hover_color = 'rgb(241,25,25)';
   let line_width = 1; // 线宽
   let radius = 0; // 圆角半径
+
+  // 根据格子比例重设格子高度
+  if (props.aspectRatio){
+    height=width*props.aspectRatio
+  }
 
   // 初始化阶段
   reDraw(ctx, bg_color, canvas)
@@ -167,8 +178,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <canvas width="1280" height="720" ref="canvas"></canvas>
-    <slot></slot>
+    <canvas :width="width" :height="height" ref="canvas"></canvas>
   </div>
 </template>
 
