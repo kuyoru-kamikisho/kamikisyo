@@ -7,9 +7,9 @@ export default defineConfig({
   plugins: [vue()],
   build: {
     lib: {
-      entry: path.resolve(__dirname, 'src', 'components', 'Adsorbent.vue'),
-      name: 'MyButton',
-      fileName: (format) => `my-button.${format}.js`,
+      entry: path.resolve(__dirname, 'src', 'components', 'KAdsorbent.vue'),
+      name: 'KAdsorbent',
+      fileName: (format) => `k-adsorbent.${format}.js`,
     },
     rollupOptions: {
       external: ['vue'],
