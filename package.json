@@ -1,8 +1,21 @@
 {
   "name": "adsorbent",
-  "private": true,
   "version": "0.0.1",
+  "private": true,
   "type": "module",
+  "keywords": [
+    "adsorbent"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kuyoru-kamikisho/adsorbent.git"
+  },
+  "homepage": "https://github.com/kuyoru-kamikisho",
+  "author": "kuyoru-kamikisho",
+  "license": "Apache License 2.0",
+  "bugs": {
+    "url": "https://github.com/kuyoru-kamikisho/adsorbent/issues"
+  },
   "scripts": {
     "vs": "vite",
     "vb": "vue-tsc && vite build",
