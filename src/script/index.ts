@@ -75,14 +75,14 @@ export function parseTranslate3dString(str: string): number[] {
 
 /**
  * ## 进位除法
- * @param a
- * @param b
+ * @param a 被除数
+ * @param b 除数
  */
 export function division(a: number, b: number): number {
     const quotient = Math.floor(a / b);
     const remainder = a % b;
 
-    if (a === 0)
+    if (a <= 0)
         return 1
 
     return remainder === 0 ? quotient : quotient + 1;
@@ -135,7 +135,7 @@ export function isSubset(A: any[], B: any[]) {
  * @param width 矩形横向占据的格子数
  * @param height 矩形纵向占据的格子数
  */
-export function getSubMatrix(leftOffset:number, topOffset:number, width:number, height:number) {
+export function getSubMatrix(leftOffset: number, topOffset: number, width: number, height: number) {
     const matrix = [];
     for (let i = topOffset; i < topOffset + height; i++) {
         for (let j = leftOffset; j < leftOffset + width; j++) {

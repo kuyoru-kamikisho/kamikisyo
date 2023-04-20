@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import {onMounted, ref} from "vue";
 import {division, getSubMatrix, moveElement, parseTranslate3dString} from "../script";
+// —————————————————————— emits ——————————————————————
+type RedrawEvent = {
+  width: number // 处于交互状态的栅格的总宽度
+  height: number // 处于交互状态的栅格的总高度
+  row: number // 最小行占格
+  col: number // 最小列占格
+  left: number // 左上角格子的坐标的x偏移
+  top: number // 左上角格子的坐标的y偏移
+}
+
+let emits = defineEmits<{
+  (e: 'redraw', arg: RedrawEvent): void
+}>();
+
 // —————————————————————— data ——————————————————————
 let domCanvas = ref<any>(null);
 let corner_stack: Set<any> = new Set()
@@ -8,8 +22,8 @@ let corner_stack: Set<any> = new Set()
 // —————————————————————— props ——————————————————————
 let props = withDefaults(defineProps<{
   watchDom?: HTMLElement // 监听的Dom元素，如果传入，则该Dom元素将成为实际与canvas进行交互的元素，如果不填，则交互元素是通过插槽进入的元素的根节点，与鼠标一致，同时只能有一个元素与画布交互，因此这不是一个数组
-  width?: number // 画布的宽度
-  height?: number // 画布的高度
+  width?: number          // 画布的宽度
+  height?: number           // 画布的高度
   pointer?: boolean      // 是否启用鼠标交互，启用后画布会和鼠标进行交互，禁用后只会和内部元素交互
   round?: number        // 格子的圆角化程度，默认为0
   aspectRatio?: number     // 每一个格子的横向长度与纵向长度严格遵守的比例 如 16/9 或者 4/3，0表示禁用
@@ -23,13 +37,13 @@ let props = withDefaults(defineProps<{
   latSou?: string       // 无悬浮时的栅格描边色
   rows?: number            // 期望的纵向格子数，默认为12个，即行数
   sWidth?: number       // 描边宽度
-  cover?: boolean // 格子是否铺满，启用此选项会使格子铺满整个画布
+  cover?: boolean        // 格子是否铺满，启用此选项会使格子铺满整个画布
   hvShadow?: [number, number, number, string] // 悬浮时添加阴影
   otShadow?: [number, number, number, string] // 正常状态的阴影
-  movable?: boolean  // 子元素可拖拽
-  sizeable?: boolean // 子元素可扩展
-  autoPlace?: boolean // 自动分配空间和位置，禁用此项后元素的层级样式不会被接管
-  autoSize?: boolean // 自动调整元素的大小
+  movable?: boolean        // 子元素可拖拽
+  sizeable?: boolean       // 子元素可扩展
+  autoPlace?: boolean       // 自动分配空间和位置，禁用此项后元素的层级样式不会被接管
+  autoSize?: boolean       // 自动调整元素的大小
 }>(), {
   autoPlace: true,
   autoSize: true,
@@ -181,12 +195,13 @@ function render(canvas: HTMLCanvasElement) {
   // 与鼠标/元素交互
   if (props.pointer) {
     let rectX, rectY;
+    let x, y;
 
     // 每次鼠标的移动都会触发重绘
     canvas.addEventListener('mousemove', (event) => {
       reDraw(ctx, bg_color, canvas)
-      const x = event.offsetX;
-      const y = event.offsetY;
+      x = event.offsetX;
+      y = event.offsetY;
 
       for (let i = 0; i < row_la_num; i++) {
         for (let j = 0; j < col_la_num; j++) {
@@ -196,6 +211,7 @@ function render(canvas: HTMLCanvasElement) {
           if (x >= rectX && x <= rectX + width && y >= rectY && y <= rectY + height) {
             ctx.strokeStyle = stroke_color_hov
             ctx.fillStyle = hover_color;
+            emits('redraw', {width: width, height: height, row: 1, col: 1, left: rectX, top: rectY})
           } else {
             ctx.strokeStyle = stroke_color
             ctx.fillStyle = not_hover;
@@ -206,21 +222,30 @@ function render(canvas: HTMLCanvasElement) {
       }
     });
   } else {
+    // 与元素交互
     let box = document.querySelector('.adb-box');
     let can = document.querySelector('canvas');
 
     if (box) {
       box.addEventListener('mousemove', e => {
         let tat: any = props.watchDom ?? e.target;
+
+        let rectX, rectY,
+            rect1, rect2,
+            left, top, position,
+            rz, cz, w, h;
+
+        let x1: any, y1: any,
+            x2: any, y2: any
+
         if (tat && tat !== can) {
-          let rectX, rectY;
-          const rect1 = tat.getBoundingClientRect();
-          const rect2 = can!.getBoundingClientRect();
+          rect1 = tat.getBoundingClientRect();
+          rect2 = can!.getBoundingClientRect();
 
-          let left = rect1.left - rect2.left;
-          let top = rect1.top - rect2.top;
+          left = rect1.left - rect2.left;
+          top = rect1.top - rect2.top;
 
-          const position = {
+          position = {
             left: left,
             top: top,
             right: left + rect1.width,
@@ -228,10 +253,19 @@ function render(canvas: HTMLCanvasElement) {
           };
 
           reDraw(ctx, props.bgColor, canvas)
-          const x1 = position.left;
-          const y1 = position.top;
-          const x2 = position.right;
-          const y2 = position.bottom;
+          x1 = position.left;
+          y1 = position.top;
+          x2 = position.right;
+          y2 = position.bottom;
+
+          // 重绘触发事件该交互元素在自动放置时所应该具备的最小宽度与高度
+          rz = division(rect1.width, width + gap);
+          cz = division(rect1.height, height + gap);
+          w = rz * width + gap * (rz - 1)
+          h = cz * height + gap * (cz - 1)
+          rectX = Math.floor((left / (width + gap))) * (width + gap) + gap
+          rectY = Math.floor((top / (height + gap))) * (height + gap) + gap
+          emits('redraw', {width: w, height: h, row: rz, col: cz, left: rectX, top: rectY})
 
           for (let i = 0; i < row_la_num; i++) {
             for (let j = 0; j < col_la_num; j++) {
