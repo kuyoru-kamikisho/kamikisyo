@@ -126,3 +126,21 @@ export function isSubset(A: any[], B: any[]) {
     }
     return true;
 }
+
+/**
+ * ## 矩阵截取
+ *
+ * @param leftOffset 距要截取的矩形距离矩阵左侧的格子数
+ * @param topOffset 距要截取的矩形距离矩阵上侧的格子数
+ * @param width 矩形横向占据的格子数
+ * @param height 矩形纵向占据的格子数
+ */
+export function getSubMatrix(leftOffset:number, topOffset:number, width:number, height:number) {
+    const matrix = [];
+    for (let i = topOffset; i < topOffset + height; i++) {
+        for (let j = leftOffset; j < leftOffset + width; j++) {
+            matrix.push(`${i}${j}`);
+        }
+    }
+    return matrix;
+}

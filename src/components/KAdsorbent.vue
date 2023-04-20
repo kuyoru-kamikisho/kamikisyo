@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {onMounted, ref} from "vue";
-import {division, moveElement, parseTranslate3dString} from "../script";
+import {division, getSubMatrix, moveElement, parseTranslate3dString} from "../script";
 // —————————————————————— data ——————————————————————
 let domCanvas = ref<any>(null);
 let corner_stack: Set<any> = new Set()
@@ -8,8 +8,8 @@ let corner_stack: Set<any> = new Set()
 // —————————————————————— props ——————————————————————
 let props = withDefaults(defineProps<{
   watchDom?: HTMLElement // 监听的Dom元素，如果传入，则该Dom元素将成为实际与canvas进行交互的元素，如果不填，则交互元素是通过插槽进入的元素的根节点，与鼠标一致，同时只能有一个元素与画布交互，因此这不是一个数组
-  width?: number
-  height?: number
+  width?: number // 画布的宽度
+  height?: number // 画布的高度
   pointer?: boolean      // 是否启用鼠标交互，启用后画布会和鼠标进行交互，禁用后只会和内部元素交互
   round?: number        // 格子的圆角化程度，默认为0
   aspectRatio?: number     // 每一个格子的横向长度与纵向长度严格遵守的比例 如 16/9 或者 4/3，0表示禁用
@@ -26,7 +26,15 @@ let props = withDefaults(defineProps<{
   cover?: boolean // 格子是否铺满，启用此选项会使格子铺满整个画布
   hvShadow?: [number, number, number, string] // 悬浮时添加阴影
   otShadow?: [number, number, number, string] // 正常状态的阴影
+  movable?: boolean  // 子元素可拖拽
+  sizeable?: boolean // 子元素可扩展
+  autoPlace?: boolean // 自动分配空间和位置，禁用此项后元素的层级样式不会被接管
+  autoSize?: boolean // 自动调整元素的大小
 }>(), {
+  autoPlace: true,
+  autoSize: true,
+  movable: true,
+  sizeable: true,
   pointer: true,
   round: 0,
   cover: false,
@@ -167,7 +175,7 @@ function render(canvas: HTMLCanvasElement) {
     }
   }
 
-  // 分配空间
+  // 自动分配空间
   autoOccupy(width, height, gap, col_la_num, row_la_num)
 
   // 与鼠标/元素交互
@@ -259,8 +267,10 @@ function render(canvas: HTMLCanvasElement) {
  */
 function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) {
   let zrs, zcs, str, zds;
-  let cso: HTMLElement[] = [];
+
   let cmn: HTMLElement[] = [];
+  let mcr: number[][] = []
+
   let box: any = document.querySelector('.adb-box')!;
   let children: any = box.children;
   let child, tra, n3d;
@@ -271,41 +281,47 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
     child.style.position = 'absolute'
     tra = child.style.transform;
     n3d = parseTranslate3dString(tra);
+
     // 使元素可以被拖拽
-    moveElement(child)
+    if (props.movable)
+      moveElement(child)
 
     // 元素需要在一行/列上占据的格子数
-    min_rows = division(child.offsetWidth, lw)
-    min_cols = division(child.offsetHeight, lh)
+    min_rows = division(child.offsetWidth, lw + lg)
+    min_cols = division(child.offsetHeight, lh + lg)
     // 这个元素的左上和右下两个顶角的坐标
 
 
     // 重设元素的大小
-    child.style.width = min_rows * lw + lg * (min_rows - 1) + 'px'
-    child.style.height = min_cols * lh + lg * (min_cols - 1) + 'px'
+    if (props.autoSize) {
+      child.style.width = min_rows * lw + lg * (min_rows - 1) + 'px'
+      child.style.height = min_cols * lh + lg * (min_cols - 1) + 'px'
+    }
 
-    if (n3d.length > 0) {
-      cso.push(child);
-      let ofl = (n3d[0] - lg) / (lw + lg);
-      let oft = (n3d[1] - lg) / (lh + lg);
-      let xPos = lg + Math.floor(ofl) * (lw + lg)
-      let yPos = lg + Math.floor(oft) * (lw + lg)
+    // 空间分配
+    if (props.autoPlace) {
+      if (n3d.length > 0) {
+        let ofl = Math.floor((n3d[0] - lg) / (lw + lg));
+        let oft = Math.floor((n3d[1] - lg) / (lh + lg));
 
-      child.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`
-    } else {
-      cmn.push(child)
-      searchMyPlace(min_cols, min_rows, child)
+        let xPos = lg + ofl * (lw + lg)
+        let yPos = lg + oft * (lw + lg)
+
+        let subMatrix = getSubMatrix(ofl, oft, min_rows, min_cols);
+
+        corner_stack = new Set([...corner_stack, ...subMatrix])
+        child.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`
+      } else {
+        cmn.push(child)
+        mcr.push([min_cols, min_rows])
+      }
     }
   }
 
-
-  /**
-   * ## 为天选之子分配空间位置
-   * @param c
-   */
-  async function setCso() {
-
-  }
+  cmn.forEach(c => {
+    let pop = mcr.pop()!;
+    searchMyPlace(pop[0], pop[1], c)
+  })
 
   /**
    * ## 寻找空余位置并分配
