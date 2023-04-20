@@ -4,7 +4,6 @@
  * @param element
  */
 export function moveElement(element: HTMLElement) {
-    let tsf = element.style.transform;
     let isDragging = false;
     let currentX = 0;
     let currentY = 0;
@@ -13,22 +12,23 @@ export function moveElement(element: HTMLElement) {
     let xOffset = 0;
     let yOffset = 0;
 
-    if (tsf.includes('translate3d')) {
-        let ns = parseTranslate3dString(tsf);
-        xOffset = ns[0]
-        yOffset = ns[1]
-    }
-
     element.addEventListener("mousedown", dragStart);
     element.addEventListener("mouseup", dragEnd);
-    element.addEventListener("mousemove", drag);
 
     function dragStart(e: MouseEvent) {
+        let tsf = element.style.transform;
+        if (tsf.includes('translate3d')) {
+            let ns = parseTranslate3dString(tsf);
+            xOffset = ns[0]
+            yOffset = ns[1]
+        }
+
         initialX = e.clientX - xOffset;
         initialY = e.clientY - yOffset;
 
         if (e.target === element) {
             isDragging = true;
+            document.addEventListener("mousemove", drag);
         }
     }
 
@@ -37,6 +37,7 @@ export function moveElement(element: HTMLElement) {
         initialY = currentY;
 
         isDragging = false;
+        document.removeEventListener('mousemove', drag)
     }
 
     function drag(e: MouseEvent) {
@@ -81,7 +82,7 @@ export function division(a: number, b: number): number {
     const quotient = Math.floor(a / b);
     const remainder = a % b;
 
-    if (a===0)
+    if (a === 0)
         return 1
 
     return remainder === 0 ? quotient : quotient + 1;
@@ -116,7 +117,7 @@ export function parseMatrix(arr: string[]): string[] {
  * @param A
  * @param B
  */
-export function isSubset(A:any[], B:any[]) {
+export function isSubset(A: any[], B: any[]) {
     const setA = new Set(A);
     for (let i = 0; i < B.length; i++) {
         if (!setA.has(B[i])) {

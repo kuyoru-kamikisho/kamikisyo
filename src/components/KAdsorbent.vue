@@ -205,7 +205,7 @@ function render(canvas: HTMLCanvasElement) {
       box.addEventListener('mousemove', e => {
         let tat: any = props.watchDom ?? e.target;
         if (tat && tat !== can) {
-          let rectX,rectY;
+          let rectX, rectY;
           const rect1 = tat.getBoundingClientRect();
           const rect2 = can!.getBoundingClientRect();
 
@@ -250,7 +250,7 @@ function render(canvas: HTMLCanvasElement) {
 /**
  * ## 捕获插入进来的所有元素并自动分配位置与大小
  * 接管元素的位置大小以及定位
- *
+ * 天生具备坐标偏移的元素优先分配
  * @param lw 格子宽度
  * @param lh 格子高度
  * @param lg 格子间距
@@ -259,19 +259,22 @@ function render(canvas: HTMLCanvasElement) {
  */
 function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) {
   let zrs, zcs, str, zds;
+  let cso: HTMLElement[] = [];
+  let cmn: HTMLElement[] = [];
   let box: any = document.querySelector('.adb-box')!;
   let children: any = box.children;
-  let child, tra, ns, min_rows, min_cols;
+  let child, tra, n3d;
+  let min_rows: number, min_cols: number;
 
   for (let i = 1; i < children.length; i++) {
     child = children[i];
     child.style.position = 'absolute'
     tra = child.style.transform;
-    ns = parseTranslate3dString(tra);
+    n3d = parseTranslate3dString(tra);
     // 使元素可以被拖拽
     moveElement(child)
 
-    // 元素在一行/列上占据的格子数
+    // 元素需要在一行/列上占据的格子数
     min_rows = division(child.offsetWidth, lw)
     min_cols = division(child.offsetHeight, lh)
     // 这个元素的左上和右下两个顶角的坐标
@@ -281,14 +284,28 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
     child.style.width = min_rows * lw + lg * (min_rows - 1) + 'px'
     child.style.height = min_cols * lh + lg * (min_cols - 1) + 'px'
 
-    if (ns.length > 0) {
+    if (n3d.length > 0) {
+      cso.push(child);
+      let ofl = (n3d[0] - lg) / (lw + lg);
+      let oft = (n3d[1] - lg) / (lh + lg);
+      let xPos = lg + Math.floor(ofl) * (lw + lg)
+      let yPos = lg + Math.floor(oft) * (lw + lg)
 
+      child.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`
     } else {
-      console.log('新元素')
+      cmn.push(child)
       searchMyPlace(min_cols, min_rows, child)
     }
   }
 
+
+  /**
+   * ## 为天选之子分配空间位置
+   * @param c
+   */
+  async function setCso() {
+
+  }
 
   /**
    * ## 寻找空余位置并分配
