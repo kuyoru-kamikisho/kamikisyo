@@ -429,7 +429,7 @@ onMounted(() => {
   </div>
 </template>
 
-<style lang="less">
+<style lang="scss">
 .adb-box {
   position: relative;
 
