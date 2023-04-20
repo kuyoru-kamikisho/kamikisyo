@@ -3,7 +3,7 @@ import {onMounted, ref} from "vue";
 import {division, moveElement, parseTranslate3dString} from "../script";
 // —————————————————————— data ——————————————————————
 let domCanvas = ref<any>(null);
-let corner_stack: string[] = []
+let corner_stack: Set<any> = new Set()
 
 // —————————————————————— props ——————————————————————
 let props = withDefaults(defineProps<{
@@ -122,8 +122,8 @@ function render(canvas: HTMLCanvasElement) {
   let width = props.laWidth || props.width / props.rows;  // 格子的宽度
   let height = props.height / props.cols;  // 格子的高度
   let gap = props.gap;     // 格子之间的距离
-  let row_num = props.rows;  // 横向的格子数量
-  let col_num = props.cols;  // 纵向的格子数量
+  let row_la_num = props.rows;  // 横向的格子数量，即几列
+  let col_la_num = props.cols;  // 纵向的格子数量，即几行
   let stroke_color = props.latSou; // 普通描边色
   let stroke_color_hov = props.latSin; // 被悬浮时的描边色
   let not_hover = props.latOut;
@@ -139,13 +139,13 @@ function render(canvas: HTMLCanvasElement) {
 
   if (props.cover) {
     if (!props.laWidth) {
-      if (row_num)
-        width = canvas.width / row_num - gap
-      if (col_num)
-        height = canvas.height / col_num - gap
+      if (row_la_num)
+        width = canvas.width / row_la_num - gap
+      if (col_la_num)
+        height = canvas.height / col_la_num - gap
     } else {
-      row_num = (canvas.width - gap) / (width + gap)
-      col_num = (canvas.height - gap) / (height + gap)
+      row_la_num = (canvas.width - gap) / (width + gap)
+      col_la_num = (canvas.height - gap) / (height + gap)
     }
   }
 
@@ -154,8 +154,8 @@ function render(canvas: HTMLCanvasElement) {
   ctx.lineWidth = line_width;
   ctx.strokeStyle = stroke_color;
 
-  for (let i = 0; i < row_num; i++) {
-    for (let j = 0; j < col_num; j++) {
+  for (let i = 0; i < row_la_num; i++) {
+    for (let j = 0; j < col_la_num; j++) {
       const x = i * (width + gap) + gap;
       const y = j * (height + gap) + gap;
       // 在该位置绘制矩形
@@ -168,20 +168,22 @@ function render(canvas: HTMLCanvasElement) {
   }
 
   // 分配空间
-  autoOccupy(width, height, gap, row_num, col_num)
+  autoOccupy(width, height, gap, col_la_num, row_la_num)
 
   // 与鼠标/元素交互
   if (props.pointer) {
+    let rectX, rectY;
+
     // 每次鼠标的移动都会触发重绘
     canvas.addEventListener('mousemove', (event) => {
       reDraw(ctx, bg_color, canvas)
       const x = event.offsetX;
       const y = event.offsetY;
 
-      for (let i = 0; i < row_num; i++) {
-        for (let j = 0; j < col_num; j++) {
-          const rectX = i * (width + gap) + gap;
-          const rectY = j * (height + gap) + gap;
+      for (let i = 0; i < row_la_num; i++) {
+        for (let j = 0; j < col_la_num; j++) {
+          rectX = i * (width + gap) + gap;
+          rectY = j * (height + gap) + gap;
           pen(ctx, rectX, rectY, radius, width, height)
           if (x >= rectX && x <= rectX + width && y >= rectY && y <= rectY + height) {
             ctx.strokeStyle = stroke_color_hov
@@ -203,11 +205,13 @@ function render(canvas: HTMLCanvasElement) {
       box.addEventListener('mousemove', e => {
         let tat: any = props.watchDom ?? e.target;
         if (tat && tat !== can) {
+          let rectX,rectY;
           const rect1 = tat.getBoundingClientRect();
           const rect2 = can!.getBoundingClientRect();
 
           let left = rect1.left - rect2.left;
           let top = rect1.top - rect2.top;
+
           const position = {
             left: left,
             top: top,
@@ -221,10 +225,10 @@ function render(canvas: HTMLCanvasElement) {
           const x2 = position.right;
           const y2 = position.bottom;
 
-          for (let i = 0; i < row_num; i++) {
-            for (let j = 0; j < col_num; j++) {
-              const rectX = i * (width + gap) + gap;
-              const rectY = j * (height + gap) + gap;
+          for (let i = 0; i < row_la_num; i++) {
+            for (let j = 0; j < col_la_num; j++) {
+              rectX = i * (width + gap) + gap;
+              rectY = j * (height + gap) + gap;
               pen(ctx, rectX, rectY, radius, width, height)
               if (x2 >= rectX && x1 < rectX + width && y2 >= rectY && y1 < rectY + height) {
                 ctx.strokeStyle = stroke_color_hov
@@ -254,20 +258,22 @@ function render(canvas: HTMLCanvasElement) {
  * @param cn 总列数
  */
 function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) {
+  let zrs, zcs, str, zds;
   let box: any = document.querySelector('.adb-box')!;
   let children: any = box.children;
+  let child, tra, ns, min_rows, min_cols;
 
   for (let i = 1; i < children.length; i++) {
-    let child: HTMLElement = children[i];
+    child = children[i];
     child.style.position = 'absolute'
-    let tra = child.style.transform;
-    let ns = parseTranslate3dString(tra);
+    tra = child.style.transform;
+    ns = parseTranslate3dString(tra);
     // 使元素可以被拖拽
     moveElement(child)
 
-    // 这个元素的最小占据行数与列数
-    let min_rows = division(child.offsetWidth, lw)
-    let min_cols = division(child.offsetHeight, lh)
+    // 元素在一行/列上占据的格子数
+    min_rows = division(child.offsetWidth, lw)
+    min_cols = division(child.offsetHeight, lh)
     // 这个元素的左上和右下两个顶角的坐标
 
 
@@ -278,51 +284,63 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
     if (ns.length > 0) {
 
     } else {
+      console.log('新元素')
       searchMyPlace(min_cols, min_rows, child)
     }
   }
 
+
+  /**
+   * ## 寻找空余位置并分配
+   * @param min_cols 元素在一列上需要占据的格子数
+   * @param min_rows 元素在一行上需要占据的格子数
+   * @param child 元素
+   * @param fro 从第fro[0]行第fro[1]列开始检索是否可以被占用
+   */
   function searchMyPlace(min_cols: number, min_rows: number, child: any, fro = [0, 0]): any {
-    console.log(fro)
-    // 这个元素已经占用的行列格子数
-    let zrs = 0
-    let zcs = 0
-    let str = ''
-    let zds = []
+    // 这个元素在该行/列预占用的格子数
+    zrs = 0
+    zcs = 0
+
+    str = ''
+    zds = []
     for (let j = fro[0]; j < rn; j++) {
-      // 每次换行重置列的计数
-      zcs = 0
+      // 进入新行检索时重置在该行预占用的格子数
+      zrs = 0
 
       for (let k = fro[1]; k < cn; k++) {
         // 从第j行的第k列开始尝试占用
         str = j + '' + k
 
         // 如果这个格子没有被占用
-        if (!corner_stack.includes(str)) {
+        if (!corner_stack.has(str)) {
           zds.push(str)
-          zcs += 1
+          zrs += 1
+
+          // 如果在该行预占用的格子数等于元素在一行上需要占据的格子数
+          // 结束对该行的检索，进入下一行
+          if (zrs === min_rows) {
+            break
+          }
         } else {
           // 如果这个格子被占用了，行标不变，列标向后移动一格重新查找
           return searchMyPlace(min_cols, min_rows, child, [j, k + 1])
         }
-        if (zcs === min_cols) {
-          break
-        }
       }
 
-      // 进行到这里说明上一行可以被占据
-      zrs += 1
-      if (zrs === min_rows) {
+      // 进行到这里说明这一行可以被占据
+      zcs += 1
+
+      // 如果元素在该列上需要占据的格子数等于这个元素在该列预占用的格子数
+      if (zcs === min_cols) {
         // 此时已经查找到了完美的左上顶点
-        let xPos = lg + fro[0] * (lw + lg)
-        let yPos = lg + fro[1] * (lh + lg)
+        let xPos = lg + fro[1] * (lw + lg)
+        let yPos = lg + fro[0] * (lh + lg)
         child.style.transform = `translate3d(${xPos}px, ${yPos}px, 0)`
-        corner_stack=corner_stack.concat(zds)
+        corner_stack = new Set([...corner_stack, ...zds])
         break
       }
     }
-    console.log('执行')
-    console.log(corner_stack)
   }
 }
 
