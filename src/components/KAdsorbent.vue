@@ -20,7 +20,7 @@ let domCanvas = ref<any>(null);
 let corner_stack: Set<any> = new Set()
 
 // —————————————————————— props ——————————————————————
-let props = withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   watchDom?: HTMLElement // 监听的Dom元素，如果传入，则该Dom元素将成为实际与canvas进行交互的元素，如果不填，则交互元素是通过插槽进入的元素的根节点，与鼠标一致，同时只能有一个元素与画布交互，因此这不是一个数组
   width?: number          // 画布的宽度
   height?: number           // 画布的高度
@@ -223,7 +223,7 @@ function render(canvas: HTMLCanvasElement) {
     });
   } else {
     // 与元素交互
-    let box = document.querySelector('.adb-box');
+    let box = document.querySelector('.k-adb-box');
     let can = document.querySelector('canvas');
 
     if (box) {
@@ -305,7 +305,7 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
   let cmn: HTMLElement[] = [];
   let mcr: number[][] = []
 
-  let box: any = document.querySelector('.adb-box')!;
+  let box: any = document.querySelector('.k-adb-box')!;
   let children: any = box.children;
   let child, tra, n3d;
   let min_rows: number, min_cols: number;
@@ -421,8 +421,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :style="`max-width:${width}px;max-height:${height}px;`" class="adb-box">
-    <canvas class="adb-canvas" :width="width" :height="height" ref="domCanvas"></canvas>
+  <div :style="`max-width:${width}px;max-height:${height}px;`" class="k-adb-box">
+    <canvas class="k-adb-canvas" :width="width" :height="height" ref="domCanvas"></canvas>
     <slot>
       <!-- 组件会自动接管所有插入进来的dom元素并控制他们的位置、大小等信息 -->
     </slot>
@@ -430,10 +430,10 @@ onMounted(() => {
 </template>
 
 <style lang="scss">
-.adb-box {
+.k-adb-box {
   position: relative;
 
-  .adb-canvas {
+  .k-adb-canvas {
     position: absolute;
     left: 0;
     top: 0;
