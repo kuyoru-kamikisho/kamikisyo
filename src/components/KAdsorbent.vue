@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, ref} from "vue";
+import {onMounted, watch} from "vue";
 import {division, getSubMatrix, moveElement, parseTranslate3dString} from "@/script";
 // —————————————————————— emits ——————————————————————
 type RedrawEvent = {
@@ -15,11 +15,6 @@ type RedrawEvent = {
 let emits = defineEmits<{
   (e: 'redraw', arg: RedrawEvent): void
 }>();
-
-// —————————————————————— data ——————————————————————
-let domCanvas = ref<any>(null);
-let corner_stack: Set<any> = new Set();
-let movable_activated = false
 
 // —————————————————————— props ——————————————————————
 const props = withDefaults(defineProps<{
@@ -69,6 +64,28 @@ const props = withDefaults(defineProps<{
   hvShadow: () => [0, 0, 0, 'rgba(0,0,0,0)'],
   otShadow: () => [0, 0, 0, 'rgba(0,0,0,0)'],
 });
+
+// —————————————————————— data ——————————————————————
+let corner_stack: Set<any> = new Set();
+let movable_activated = false
+let first_draw = true
+let r_width: number
+let r_height: number
+let r_gap: number
+let r_row_la_num: number
+let r_col_la_num: number
+let r_stroke_color: string
+let r_stroke_color_hov: string
+let r_not_hover: string
+let r_bg_color: string
+let r_hover_color: string
+let r_line_width: number
+let r_radius: number
+
+// —————————————————————— watch ——————————————————————
+watch([() => props.width, () => props.height], () => {
+  main_render()
+})
 
 // —————————————————————— fun ——————————————————————
 
@@ -136,55 +153,60 @@ function reDraw(ctx: CanvasRenderingContext2D, c: string, canvas: HTMLCanvasElem
 }
 
 /**
+ * ## 初始化变量
+ */
+function init_var(canvas: HTMLCanvasElement) {
+  r_width = props.laWidth || props.width / props.rows;  // 格子的宽度
+  r_height = props.height / props.cols;  // 格子的高度
+  r_gap = props.gap;     // 格子之间的距离
+  r_row_la_num = props.rows;  // 横向的格子数量，即几列
+  r_col_la_num = props.cols;  // 纵向的格子数量，即几行
+  r_stroke_color = props.latSou; // 普通描边色
+  r_stroke_color_hov = props.latSin; // 被悬浮时的描边色
+  r_not_hover = props.latOut;
+  r_bg_color = props.bgColor; // 画布的背景色
+  r_hover_color = props.latIn;
+  r_line_width = props.sWidth; // 线宽
+  r_radius = props.round; // 圆角半径
+
+  // 根据格子比例重设格子高度
+  if (props.aspectRatio) {
+    r_height = r_width * props.aspectRatio
+  }
+
+  if (props.cover) {
+    if (!props.laWidth) {
+      if (r_row_la_num)
+        r_width = canvas.width / r_row_la_num - r_gap
+      if (r_col_la_num)
+        r_height = canvas.height / r_col_la_num - r_gap
+    } else {
+      r_row_la_num = (canvas.width - r_gap) / (r_width + r_gap)
+      r_col_la_num = (canvas.height - r_gap) / (r_height + r_gap)
+    }
+  }
+}
+
+/**
  * ## 绘制格子矩阵
  * * 绘制 10 * 10 的圆角格子矩阵
  * @param canvas
  */
 function render(canvas: HTMLCanvasElement) {
-  const ctx = canvas.getContext('2d')!;
-
-  let width = props.laWidth || props.width / props.rows;  // 格子的宽度
-  let height = props.height / props.cols;  // 格子的高度
-  let gap = props.gap;     // 格子之间的距离
-  let row_la_num = props.rows;  // 横向的格子数量，即几列
-  let col_la_num = props.cols;  // 纵向的格子数量，即几行
-  let stroke_color = props.latSou; // 普通描边色
-  let stroke_color_hov = props.latSin; // 被悬浮时的描边色
-  let not_hover = props.latOut;
-  let bg_color = props.bgColor; // 画布的背景色
-  let hover_color = props.latIn;
-  let line_width = props.sWidth; // 线宽
-  let radius = props.round; // 圆角半径
-
-  // 根据格子比例重设格子高度
-  if (props.aspectRatio) {
-    height = width * props.aspectRatio
-  }
-
-  if (props.cover) {
-    if (!props.laWidth) {
-      if (row_la_num)
-        width = canvas.width / row_la_num - gap
-      if (col_la_num)
-        height = canvas.height / col_la_num - gap
-    } else {
-      row_la_num = (canvas.width - gap) / (width + gap)
-      col_la_num = (canvas.height - gap) / (height + gap)
-    }
-  }
-
+  let ctx = canvas.getContext('2d')!;
   // 初始化阶段
-  reDraw(ctx, bg_color, canvas)
-  ctx.lineWidth = line_width;
-  ctx.strokeStyle = stroke_color;
+  init_var(canvas)
+  reDraw(ctx, r_bg_color, canvas)
+  ctx.lineWidth = r_line_width;
+  ctx.strokeStyle = r_stroke_color;
 
-  for (let i = 0; i < row_la_num; i++) {
-    for (let j = 0; j < col_la_num; j++) {
-      const x = i * (width + gap) + gap;
-      const y = j * (height + gap) + gap;
+  for (let i = 0; i < r_row_la_num; i++) {
+    for (let j = 0; j < r_col_la_num; j++) {
+      const x = i * (r_width + r_gap) + r_gap;
+      const y = j * (r_height + r_gap) + r_gap;
       // 在该位置绘制矩形
-      pen(ctx, x, y, radius, width, height)
-      ctx.fillStyle = not_hover;
+      pen(ctx, x, y, r_radius, r_width, r_height)
+      ctx.fillStyle = r_not_hover;
       // 描边
       ctx.fill()
       ctx.stroke();
@@ -192,7 +214,7 @@ function render(canvas: HTMLCanvasElement) {
   }
 
   // 自动分配空间
-  autoOccupy(width, height, gap, col_la_num, row_la_num)
+  autoOccupy(r_width, r_height, r_gap, r_col_la_num, r_row_la_num)
 
   // 与鼠标/元素交互
   if (props.pointer) {
@@ -201,29 +223,29 @@ function render(canvas: HTMLCanvasElement) {
 
     // 每次鼠标的移动都会触发重绘
     canvas.addEventListener('mousemove', (event) => {
-      reDraw(ctx, bg_color, canvas)
+      reDraw(ctx, r_bg_color, canvas)
       x = event.offsetX;
       y = event.offsetY;
 
-      for (let i = 0; i < row_la_num; i++) {
-        for (let j = 0; j < col_la_num; j++) {
-          rectX = i * (width + gap) + gap;
-          rectY = j * (height + gap) + gap;
-          pen(ctx, rectX, rectY, radius, width, height)
-          if (x >= rectX && x <= rectX + width && y >= rectY && y <= rectY + height) {
-            ctx.strokeStyle = stroke_color_hov
-            ctx.fillStyle = hover_color;
+      for (let i = 0; i < r_row_la_num; i++) {
+        for (let j = 0; j < r_col_la_num; j++) {
+          rectX = i * (r_width + r_gap) + r_gap;
+          rectY = j * (r_height + r_gap) + r_gap;
+          pen(ctx, rectX, rectY, r_radius, r_width, r_height)
+          if (x >= rectX && x <= rectX + r_width && y >= rectY && y <= rectY + r_height) {
+            ctx.strokeStyle = r_stroke_color_hov
+            ctx.fillStyle = r_hover_color;
             emits('redraw', {
-              width: width,
-              height: height,
+              width: r_width,
+              height: r_height,
               row: 1,
               col: 1,
               left: rectX,
               top: rectY
             })
           } else {
-            ctx.strokeStyle = stroke_color
-            ctx.fillStyle = not_hover;
+            ctx.strokeStyle = r_stroke_color
+            ctx.fillStyle = r_not_hover;
           }
           ctx.fill();
           ctx.stroke();
@@ -233,19 +255,22 @@ function render(canvas: HTMLCanvasElement) {
   } else {
     // 与元素交互
     let box = document.querySelector('.k-adb-box');
-    let can = document.querySelector('canvas');
 
     if (box) {
-      box.addEventListener('mousemove', e => {
-        let tat: any = props.watchDom ?? e.target;
+      let can: HTMLCanvasElement;
+      let tat: any;
+      let rectX, rectY,
+          rect1, rect2,
+          left, top, position,
+          rz, cz, w, h;
 
-        let rectX, rectY,
-            rect1, rect2,
-            left, top, position,
-            rz, cz, w, h;
+      let x1: any, y1: any,
+          x2: any, y2: any
 
-        let x1: any, y1: any,
-            x2: any, y2: any
+      let listener = (e: Event) => {
+        can = document.querySelector('.k-adb-canvas')!;
+        ctx = can.getContext('2d')!
+        tat = props.watchDom ?? e.target;
 
         if (tat && tat !== can) {
           rect1 = tat.getBoundingClientRect();
@@ -261,19 +286,19 @@ function render(canvas: HTMLCanvasElement) {
             bottom: top + rect1.height,
           };
 
-          reDraw(ctx, props.bgColor, canvas)
+          reDraw(ctx, props.bgColor, can)
           x1 = position.left;
           y1 = position.top;
           x2 = position.right;
           y2 = position.bottom;
 
           // 重绘触发事件该交互元素在自动放置时所应该具备的最小宽度与高度
-          rz = division(rect1.width, width + gap);
-          cz = division(rect1.height, height + gap);
-          w = rz * width + gap * (rz - 1)
-          h = cz * height + gap * (cz - 1)
-          rectX = Math.floor((left / (width + gap))) * (width + gap) + gap
-          rectY = Math.floor((top / (height + gap))) * (height + gap) + gap
+          rz = division(rect1.width, r_width + r_gap);
+          cz = division(rect1.height, r_height + r_gap);
+          w = rz * r_width + r_gap * (rz - 1)
+          h = cz * r_height + r_gap * (cz - 1)
+          rectX = Math.floor((left / (r_width + r_gap))) * (r_width + r_gap) + r_gap
+          rectY = Math.floor((top / (r_height + r_gap))) * (r_height + r_gap) + r_gap
           emits('redraw', {
             width: w,
             height: h,
@@ -283,24 +308,28 @@ function render(canvas: HTMLCanvasElement) {
             top: rectY
           })
 
-          for (let i = 0; i < row_la_num; i++) {
-            for (let j = 0; j < col_la_num; j++) {
-              rectX = i * (width + gap) + gap;
-              rectY = j * (height + gap) + gap;
-              pen(ctx, rectX, rectY, radius, width, height)
-              if (x2 >= rectX && x1 < rectX + width && y2 >= rectY && y1 < rectY + height) {
-                ctx.strokeStyle = stroke_color_hov
-                ctx.fillStyle = hover_color;
+          for (let i = 0; i < r_row_la_num; i++) {
+            for (let j = 0; j < r_col_la_num; j++) {
+              rectX = i * (r_width + r_gap) + r_gap;
+              rectY = j * (r_height + r_gap) + r_gap;
+              pen(ctx, rectX, rectY, r_radius, r_width, r_height)
+              if (x2 >= rectX && x1 < rectX + r_width && y2 >= rectY && y1 < rectY + r_height) {
+                ctx.strokeStyle = r_stroke_color_hov
+                ctx.fillStyle = r_hover_color;
               } else {
-                ctx.strokeStyle = stroke_color
-                ctx.fillStyle = not_hover;
+                ctx.strokeStyle = r_stroke_color
+                ctx.fillStyle = r_not_hover;
               }
               ctx.fill();
               ctx.stroke();
             }
           }
         }
-      })
+      };
+
+      if (first_draw) {
+        box.addEventListener('mousemove', listener)
+      }
     }
   }
 }
@@ -323,12 +352,12 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
   let mcr: number[][] = []
 
   let w, h;
-  let box: any = document.querySelector('.k-adb-box')!;
+  let box: any = document.querySelector('.k-adb-inner')!;
   let children: any = box.children;
   let child, tra, n3d;
   let min_rows: number, min_cols: number;
 
-  for (let i = 1; i < children.length; i++) {
+  for (let i = 0; i < children.length; i++) {
     child = children[i];
     child.style.position = 'absolute'
     tra = child.style.transform;
@@ -444,21 +473,50 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
   }
 }
 
+/**
+ * ## 渲染程序主入口
+ */
+function main_render() {
+  if (props.width > 0 && props.height > 0) {
+    // 先移除旧的canvas
+    let cv = document.querySelector('.k-adb-canvas');
+    cv?.remove()
+    // 创建 canvas 元素
+    const canvas = document.createElement('canvas');
+    const parent = document.querySelector('.k-adb-box');
+
+    // 设置 canvas 元素的 class 属性
+    canvas.className = 'k-adb-canvas';
+
+    // 设置 canvas 元素的 width 和 height 属性
+    canvas.width = props.width;
+    canvas.height = props.height;
+
+    // 将 canvas 元素添加到文档中的某个元素中
+    const child_2 = document.querySelector('.k-adb-inner');
+    parent?.insertBefore(canvas, child_2)
+
+    render(canvas)
+    // 避免浪费性能
+    first_draw = false
+  }
+}
+
 // —————————————————————— life ——————————————————————
 onMounted(() => {
-  if (domCanvas.value) {
-    render(domCanvas.value)
-  }
+  main_render()
 })
 
 </script>
 
 <template>
   <div :style="`max-width:${width}px;max-height:${height}px;`" class="k-adb-box">
-    <canvas class="k-adb-canvas" :width="width" :height="height" ref="domCanvas"></canvas>
-    <slot>
-      <!-- 组件会自动接管所有插入进来的dom元素并控制他们的位置、大小等信息 -->
-    </slot>
+    <!--  canvas将被插入在这里  -->
+    <div class="k-adb-inner">
+      <slot>
+        <!-- 组件会自动接管所有插入进来的dom元素并控制他们的位置、大小等信息 -->
+      </slot>
+    </div>
   </div>
 </template>
 
