@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import {onMounted, ref} from "vue";
-import {division, getSubMatrix, moveElement, parseTranslate3dString} from "../script";
+import {division, getSubMatrix, moveElement, parseTranslate3dString} from "@/script";
 // —————————————————————— emits ——————————————————————
 type RedrawEvent = {
   width: number // 处于交互状态的栅格的总宽度
   height: number // 处于交互状态的栅格的总高度
   row: number // 最小行占格
   col: number // 最小列占格
-  left: number // 左上角格子的坐标的x偏移
-  top: number // 左上角格子的坐标的y偏移
+  left?: number // 左上角格子的坐标的x偏移
+  top?: number // 左上角格子的坐标的y偏移
+  dom?: HTMLElement // 受控制的元素
 }
 
 let emits = defineEmits<{
@@ -17,7 +18,8 @@ let emits = defineEmits<{
 
 // —————————————————————— data ——————————————————————
 let domCanvas = ref<any>(null);
-let corner_stack: Set<any> = new Set()
+let corner_stack: Set<any> = new Set();
+let movable_activated = false
 
 // —————————————————————— props ——————————————————————
 const props = withDefaults(defineProps<{
@@ -211,7 +213,14 @@ function render(canvas: HTMLCanvasElement) {
           if (x >= rectX && x <= rectX + width && y >= rectY && y <= rectY + height) {
             ctx.strokeStyle = stroke_color_hov
             ctx.fillStyle = hover_color;
-            emits('redraw', {width: width, height: height, row: 1, col: 1, left: rectX, top: rectY})
+            emits('redraw', {
+              width: width,
+              height: height,
+              row: 1,
+              col: 1,
+              left: rectX,
+              top: rectY
+            })
           } else {
             ctx.strokeStyle = stroke_color
             ctx.fillStyle = not_hover;
@@ -265,7 +274,14 @@ function render(canvas: HTMLCanvasElement) {
           h = cz * height + gap * (cz - 1)
           rectX = Math.floor((left / (width + gap))) * (width + gap) + gap
           rectY = Math.floor((top / (height + gap))) * (height + gap) + gap
-          emits('redraw', {width: w, height: h, row: rz, col: cz, left: rectX, top: rectY})
+          emits('redraw', {
+            width: w,
+            height: h,
+            row: rz,
+            col: cz,
+            left: rectX,
+            top: rectY
+          })
 
           for (let i = 0; i < row_la_num; i++) {
             for (let j = 0; j < col_la_num; j++) {
@@ -301,10 +317,12 @@ function render(canvas: HTMLCanvasElement) {
  */
 function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) {
   let zrs, zcs, str, zds;
+  let ofl, oft, xPos, yPos;
 
   let cmn: HTMLElement[] = [];
   let mcr: number[][] = []
 
+  let w, h;
   let box: any = document.querySelector('.k-adb-box')!;
   let children: any = box.children;
   let child, tra, n3d;
@@ -317,8 +335,9 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
     n3d = parseTranslate3dString(tra);
 
     // 使元素可以被拖拽
-    if (props.movable)
+    if (props.movable && !movable_activated) {
       moveElement(child)
+    }
 
     // 元素需要在一行/列上占据的格子数
     min_rows = division(child.offsetWidth, lw + lg)
@@ -327,19 +346,20 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
 
 
     // 重设元素的大小
+    w = min_rows * lw + lg * (min_rows - 1);
+    h = min_cols * lh + lg * (min_cols - 1);
     if (props.autoSize) {
-      child.style.width = min_rows * lw + lg * (min_rows - 1) + 'px'
-      child.style.height = min_cols * lh + lg * (min_cols - 1) + 'px'
+      child.style.width = w + 'px'
+      child.style.height = h + 'px'
     }
 
     // 空间分配
     if (props.autoPlace) {
       if (n3d.length > 0) {
-        let ofl = Math.floor((n3d[0] - lg) / (lw + lg));
-        let oft = Math.floor((n3d[1] - lg) / (lh + lg));
-
-        let xPos = lg + ofl * (lw + lg)
-        let yPos = lg + oft * (lw + lg)
+        ofl = Math.floor((n3d[0] - lg) / (lw + lg));
+        oft = Math.floor((n3d[1] - lg) / (lh + lg));
+        xPos = lg + ofl * (lw + lg);
+        yPos = lg + oft * (lw + lg);
 
         let subMatrix = getSubMatrix(ofl, oft, min_rows, min_cols);
 
@@ -350,7 +370,20 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
         mcr.push([min_cols, min_rows])
       }
     }
+
+    emits('redraw', {
+      width: w,
+      height: h,
+      row: min_rows,
+      col: min_cols,
+      left: xPos,
+      top: yPos,
+      dom: child
+    })
   }
+
+  // 无论是否被激活，循环结束后都设置为激活状态
+  movable_activated = true
 
   cmn.forEach(c => {
     let pop = mcr.pop()!;
