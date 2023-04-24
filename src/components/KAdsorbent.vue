@@ -254,7 +254,7 @@ function render(canvas: HTMLCanvasElement) {
     });
   } else {
     // 与元素交互
-    let box = document.querySelector('.k-adb-box');
+    let box = document.querySelector('.k-adsorbent-box');
 
     if (box) {
       let can: HTMLCanvasElement;
@@ -268,7 +268,7 @@ function render(canvas: HTMLCanvasElement) {
           x2: any, y2: any
 
       let listener = (e: Event) => {
-        can = document.querySelector('.k-adb-canvas')!;
+        can = document.querySelector('.k-adsorbent-canvas')!;
         ctx = can.getContext('2d')!
         tat = props.watchDom ?? e.target;
 
@@ -352,7 +352,7 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
   let mcr: number[][] = []
 
   let w, h;
-  let box: any = document.querySelector('.k-adb-inner')!;
+  let box: any = document.querySelector('.k-adsorbent-inner')!;
   let children: any = box.children;
   let child, tra, n3d;
   let min_rows: number, min_cols: number;
@@ -479,21 +479,21 @@ function autoOccupy(lw: number, lh: number, lg: number, rn: number, cn: number) 
 function main_render() {
   if (props.width > 0 && props.height > 0) {
     // 先移除旧的canvas
-    let cv = document.querySelector('.k-adb-canvas');
+    let cv = document.querySelector('.k-adsorbent-canvas');
     cv?.remove()
     // 创建 canvas 元素
     const canvas = document.createElement('canvas');
-    const parent = document.querySelector('.k-adb-box');
+    const parent = document.querySelector('.k-adsorbent-box');
 
     // 设置 canvas 元素的 class 属性
-    canvas.className = 'k-adb-canvas';
+    canvas.className = 'k-adsorbent-canvas';
 
     // 设置 canvas 元素的 width 和 height 属性
     canvas.width = props.width;
     canvas.height = props.height;
 
     // 将 canvas 元素添加到文档中的某个元素中
-    const child_2 = document.querySelector('.k-adb-inner');
+    const child_2 = document.querySelector('.k-adsorbent-inner');
     parent?.insertBefore(canvas, child_2)
 
     render(canvas)
@@ -506,13 +506,12 @@ function main_render() {
 onMounted(() => {
   main_render()
 })
-
 </script>
 
 <template>
-  <div :style="`max-width:${width}px;max-height:${height}px;`" class="k-adb-box">
+  <div :style="`max-width:${width}px;max-height:${height}px;`" class="k-adsorbent-box">
     <!--  canvas将被插入在这里  -->
-    <div class="k-adb-inner">
+    <div class="k-adsorbent-inner">
       <slot>
         <!-- 组件会自动接管所有插入进来的dom元素并控制他们的位置、大小等信息 -->
       </slot>
@@ -521,10 +520,10 @@ onMounted(() => {
 </template>
 
 <style lang="scss">
-.k-adb-box {
+.k-adsorbent-box {
   position: relative;
 
-  .k-adb-canvas {
+  .k-adsorbent-canvas {
     position: absolute;
     left: 0;
     top: 0;
